@@ -853,6 +853,7 @@ function langName(code, ui) {
 
 const I18N = {
   ru: {
+    placeholder: 'Вставь сюда текст песни: иероглифы, пиньинь, кану, хангыль или латиницу. Можно копировать прямо с Genius, лишнее уберётся само.',
     jaLoading: ' Загружаю японский словарь…', jaFailed: ' Японский словарь не загрузился: кандзи останутся как есть, кана и ромадзи работают.',
     install: 'Установить приложение', iosHint: 'На iPhone: нажми «Поделиться», затем «На экран Домой», и конвертер появится как приложение.',
     title: 'Как звучит текст песни', uiLabel: 'Язык страницы',
@@ -871,6 +872,7 @@ const I18N = {
     sec: { intro:'Вступление', verse:'Куплет', prechorus:'Предприпев', chorus:'Припев', bridge:'Бридж', interlude:'Проигрыш', outro:'Концовка', rap:'Рэп', spoken:'Речитатив', choir:'Хор' },
   },
   en: {
+    placeholder: 'Paste the lyrics here: characters, pinyin, kana, hangul or Latin letters. You can copy straight from Genius; the extra bits are removed for you.',
     jaLoading: ' Loading the Japanese dictionary…', jaFailed: ' The Japanese dictionary did not load, so kanji stay as they are; kana and romaji still work.',
     install: 'Install app', iosHint: 'On iPhone: tap Share, then Add to Home Screen, and it opens like an app.',
     title: 'How the lyrics sound', uiLabel: 'Page language',
@@ -892,6 +894,7 @@ const I18N = {
     sec: { intro:'Intro', verse:'Verse', prechorus:'Pre-chorus', chorus:'Chorus', bridge:'Bridge', interlude:'Interlude', outro:'Outro', rap:'Rap', spoken:'Spoken', choir:'Choir' },
   },
   de: {
+    placeholder: 'Füge den Songtext hier ein: Schriftzeichen, Pinyin, Kana, Hangul oder lateinische Buchstaben. Du kannst direkt von Genius kopieren, Überflüssiges wird entfernt.',
     jaLoading: ' Das japanische Wörterbuch lädt…', jaFailed: ' Das japanische Wörterbuch wurde nicht geladen; Kanji bleiben unverändert, Kana und Romaji funktionieren.',
     install: 'App installieren', iosHint: 'Auf dem iPhone: Teilen antippen, dann „Zum Home-Bildschirm“ – danach öffnet es sich wie eine App.',
     title: 'Wie der Songtext klingt', uiLabel: 'Sprache der Seite',
@@ -913,6 +916,7 @@ const I18N = {
     sec: { intro:'Intro', verse:'Strophe', prechorus:'Pre-Chorus', chorus:'Refrain', bridge:'Bridge', interlude:'Zwischenspiel', outro:'Outro', rap:'Rap', spoken:'Gesprochen', choir:'Chor' },
   },
   fr: {
+    placeholder: 'Colle les paroles ici : caractères, pinyin, kana, hangeul ou lettres latines. Tu peux copier directement depuis Genius, le superflu est retiré.',
     jaLoading: ' Chargement du dictionnaire japonais…', jaFailed: ' Le dictionnaire japonais n’a pas pu se charger : les kanji restent tels quels, les kana et le rōmaji fonctionnent.',
     install: 'Installer l’application', iosHint: 'Sur iPhone : touche Partager, puis « Sur l’écran d’accueil », et elle s’ouvre comme une application.',
     title: 'Comment sonnent les paroles', uiLabel: 'Langue de la page',
@@ -934,6 +938,7 @@ const I18N = {
     sec: { intro:'Intro', verse:'Couplet', prechorus:'Pré-refrain', chorus:'Refrain', bridge:'Pont', interlude:'Interlude', outro:'Outro', rap:'Rap', spoken:'Parlé', choir:'Chœur' },
   },
   es: {
+    placeholder: 'Pega aquí la letra: caracteres, pinyin, kana, hangul o letras latinas. Puedes copiarla directamente de Genius; lo que sobra se quita solo.',
     jaLoading: ' Cargando el diccionario japonés…', jaFailed: ' El diccionario japonés no se cargó: los kanji quedan como están; kana y romaji funcionan.',
     install: 'Instalar la app', iosHint: 'En iPhone: toca Compartir y luego «Añadir a pantalla de inicio», y se abrirá como una app.',
     title: 'Cómo suena la letra', uiLabel: 'Idioma de la página',
@@ -955,6 +960,7 @@ const I18N = {
     sec: { intro:'Intro', verse:'Verso', prechorus:'Pre-estribillo', chorus:'Estribillo', bridge:'Puente', interlude:'Interludio', outro:'Outro', rap:'Rap', spoken:'Hablado', choir:'Coro' },
   },
   it: {
+    placeholder: 'Incolla qui il testo: caratteri, pinyin, kana, hangul o lettere latine. Puoi copiarlo direttamente da Genius, il superfluo viene tolto.',
     jaLoading: ' Caricamento del dizionario giapponese…', jaFailed: ' Il dizionario giapponese non si è caricato: i kanji restano come sono, kana e rōmaji funzionano.',
     install: 'Installa l’app', iosHint: 'Su iPhone: tocca Condividi, poi «Aggiungi alla schermata Home», e si apre come un’app.',
     title: 'Come suona il testo', uiLabel: 'Lingua della pagina',
@@ -976,6 +982,7 @@ const I18N = {
     sec: { intro:'Intro', verse:'Strofa', prechorus:'Pre-ritornello', chorus:'Ritornello', bridge:'Ponte', interlude:'Interludio', outro:'Outro', rap:'Rap', spoken:'Parlato', choir:'Coro' },
   },
   pt: {
+    placeholder: 'Cola aqui a letra: caracteres, pinyin, kana, hangul ou letras latinas. Podes copiar diretamente do Genius; o que sobra é removido.',
     jaLoading: ' A carregar o dicionário japonês…', jaFailed: ' O dicionário japonês não carregou: os kanji ficam como estão; kana e romaji funcionam.',
     install: 'Instalar a app', iosHint: 'No iPhone: toca em Partilhar e depois em «Adicionar ao ecrã principal», e abre como uma app.',
     title: 'Como soa a letra', uiLabel: 'Idioma da página',
@@ -997,6 +1004,7 @@ const I18N = {
     sec: { intro:'Introdução', verse:'Verso', prechorus:'Pré-refrão', chorus:'Refrão', bridge:'Ponte', interlude:'Interlúdio', outro:'Final', rap:'Rap', spoken:'Falado', choir:'Coro' },
   },
   ja: {
+    placeholder: 'ここに歌詞を貼り付けてください。漢字、ピンイン、かな、ハングル、ラテン文字に対応。Geniusからそのままコピーでき、余計な部分は自動で消えます。',
     install: 'アプリをインストール', iosHint: 'iPhoneでは「共有」→「ホーム画面に追加」で、アプリのように開けます。',
     title: '歌詞の発音', uiLabel: 'ページの言語',
     lead: 'Geniusの歌詞をそのまま貼り付けてください。中国語（漢字またはピンイン）、日本語、韓国語、英語、フランス語、ドイツ語、スペイン語、イタリア語、ポルトガル語、フィンランド語、アルバニア語、セルビア語に対応。選んだ読み手向けの文字で、どう聞こえるかを書き出します。',
@@ -1021,6 +1029,7 @@ const I18N = {
 };
 // Brazilian Portuguese: same as Portugal with Brazilian wording
 I18N.br = Object.assign({}, I18N.pt, {
+  placeholder: 'Cole aqui a letra: caracteres, pinyin, kana, hangul ou letras latinas. Você pode copiar direto do Genius; o que sobra é removido.',
   jaLoading: ' Carregando o dicionário japonês…',
   install: 'Instalar o app', iosHint: 'No iPhone: toque em Compartilhar e depois em «Adicionar à Tela de Início», e ele abre como um app.',
   lead: 'Cole a letra como aparece no Genius: chinês (caracteres ou pinyin), japonês, coreano, inglês, francês, alemão, espanhol, italiano, português, finlandês, albanês ou sérvio. Você recebe como ela soa, escrita do jeito que escolher.',
@@ -1323,7 +1332,6 @@ You might also like
       if (l && !present.includes(l)) present.push(l);
       if (r.src && KOR.has(r.src) && !present.includes('ko')) present.push('ko');
     }
-    if (!present.length) present.push('zh');
     $('tones').hidden = !present.includes('zh');
     const wrong = `<section><h3>${tr('wrongH')}</h3><p>${tr('wrongP')}</p></section>`;
     if (uiLang !== 'ru'){
@@ -1476,7 +1484,7 @@ You might also like
     render(rows);
     const n = rows.filter(r => ['zh','py','ko','lat','ja'].includes(r.t)).length;
     const langs = [...new Set(rows.filter(r => r.t === 'lat').map(r => langName(r.lang, uiLang)))];
-    status.textContent = (n ? tr('done')(n) : tr('nothing'))
+    status.textContent = !inp.value.trim() ? '' : (n ? tr('done')(n) : tr('nothing'))
       + (langs.length ? tr('langsUsed')(langs.join(', ')) : '')
       + ($('target').value !== 'ru' ? tr('writtenFor')(langName($('target').value, uiLang)) : '')
       + (rows.some(r => r.pending) ? tr('enLoading') : '')
@@ -1573,6 +1581,7 @@ You might also like
   function applyUI(){
     document.documentElement.lang = BCP[uiLang] || uiLang;
     document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+    inp.placeholder = tr('placeholder');
     document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', tr(el.dataset.i18nAria)));
     for (const o of $('lang').options) o.textContent = o.value === 'auto' ? tr('auto') : o.value === 'off' ? tr('off') : langName(o.value, uiLang);
     for (const o of $('target').options) o.textContent = o.value === 'ru' ? tr('cyr') : langName(o.value, uiLang);
@@ -1609,6 +1618,5 @@ You might also like
   if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone && 'serviceWorker' in navigator && location.protocol === 'https:') $('iosHint').hidden = false;
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !location.hostname.endsWith('claude.ai')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
-  inp.value = SAMPLE;
   convert();
 })();
