@@ -214,6 +214,150 @@ const KOR = (() => {
   const has = t => /[가-힣]/.test(t);
   return { text, word, has };
 })();
+// Japanese: kana -> Russian letters (Polivanov system) and Hepburn romaji; romaji -> kana; kanji via kuromoji when loaded
+const JA = (() => {
+  const KANA = /[぀-ヿㇰ-ㇿｦ-ﾟ]/;
+  const T = {};   // katakana -> [cyrillic, hepburn]
+  const add = (k, c, h) => { T[k] = [c, h]; };
+  const rows = [
+    ['アイウエオ', ['а','и','у','э','о'], ['a','i','u','e','o']],
+    ['カキクケコ', ['ка','ки','ку','кэ','ко'], ['ka','ki','ku','ke','ko']],
+    ['サシスセソ', ['са','си','су','сэ','со'], ['sa','shi','su','se','so']],
+    ['タチツテト', ['та','ти','цу','тэ','то'], ['ta','chi','tsu','te','to']],
+    ['ナニヌネノ', ['на','ни','ну','нэ','но'], ['na','ni','nu','ne','no']],
+    ['ハヒフヘホ', ['ха','хи','фу','хэ','хо'], ['ha','hi','fu','he','ho']],
+    ['マミムメモ', ['ма','ми','му','мэ','мо'], ['ma','mi','mu','me','mo']],
+    ['ヤユヨ', ['я','ю','ё'], ['ya','yu','yo']],
+    ['ラリルレロ', ['ра','ри','ру','рэ','ро'], ['ra','ri','ru','re','ro']],
+    ['ワヰヱヲ', ['ва','и','э','о'], ['wa','i','e','o']],
+    ['ガギグゲゴ', ['га','ги','гу','гэ','го'], ['ga','gi','gu','ge','go']],
+    ['ザジズゼゾ', ['дза','дзи','дзу','дзэ','дзо'], ['za','ji','zu','ze','zo']],
+    ['ダヂヅデド', ['да','дзи','дзу','дэ','до'], ['da','ji','zu','de','do']],
+    ['バビブベボ', ['ба','би','бу','бэ','бо'], ['ba','bi','bu','be','bo']],
+    ['パピプペポ', ['па','пи','пу','пэ','по'], ['pa','pi','pu','pe','po']],
+  ];
+  for (const [ks, cs, hs] of rows) [...ks].forEach((k, i) => add(k, cs[i], hs[i]));
+  add('ン', 'н', 'n'); add('ヴ', 'ву', 'vu');
+  const SMALLY = { 'ャ': ['я', 'a'], 'ュ': ['ю', 'u'], 'ョ': ['ё', 'o'] };
+  const SMALLV = { 'ァ': ['а', 'a'], 'ィ': ['и', 'i'], 'ゥ': ['у', 'u'], 'ェ': ['э', 'e'], 'ォ': ['о', 'o'] };
+  const MACRON = { a: 'ā', i: 'ī', u: 'ū', e: 'ē', o: 'ō' };
+  const CV = 'аиуэояюё';
+  const toKata = s => s.replace(/[ぁ-ゖゝゞ]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+
+  // Katakana word -> { c: Russian letters, h: Hepburn }
+  function kana(word) {
+    const s = toKata(word);
+    const syl = [];            // [cyr, hep]
+    let gem = false, bnd = false;
+    for (const ch of s) {
+      if (ch === '|') { bnd = true; continue; }
+      if (ch === 'ッ') { gem = true; continue; }
+      if (ch === 'ー') { const p = syl[syl.length - 1]; if (p) { p[0] += ':'; p[1] = p[1].replace(/[aiueo]$/, v => MACRON[v]); } continue; }
+      if (SMALLY[ch] && syl.length) {
+        const p = syl[syl.length - 1];
+        p[0] = p[0].replace(/и$/, '') + SMALLY[ch][0];
+        const b = p[1].replace(/i$/, '');
+        p[1] = /(sh|ch|j)$/.test(b) ? b + SMALLY[ch][1] : b + 'y' + SMALLY[ch][1];
+        continue;
+      }
+      if (SMALLV[ch] && syl.length) {
+        const p = syl[syl.length - 1];
+        p[0] = (p[0].length > 1 ? p[0].replace(/[аиуэо]$/, '') : p[0]) + SMALLV[ch][0];
+        p[1] = (p[1].length > 1 ? p[1].replace(/[aiueo]$/, '') : p[1]) + SMALLV[ch][1];
+        continue;
+      }
+      const t = T[ch];
+      if (!t) { syl.push([ch, ch]); gem = false; continue; }
+      let [c, h] = t;
+      if (gem) { c = c[0] + c; h = (h.startsWith('ch') ? 't' : h[0]) + h; gem = false; }
+      syl.push([c, h, bnd]); bnd = false;
+    }
+    let c = '', h = '';
+    syl.forEach(([sc, sh, b], i) => {
+      // イ after a vowel is "й" (Polivanov); ン before a vowel gets a hard sign / apostrophe
+      if (sc === 'и' && !b && /[аоуэ]$/.test(c)) sc = 'й';
+      if (/н$/.test(c) && syl[i - 1] && syl[i - 1][0] === 'н' && CV.includes(sc[0])) c += 'ъ';
+      if (/n$/.test(h) && syl[i - 1] && syl[i - 1][1] === 'n' && /^[aiueoy]/.test(sh)) h += "'";
+      c += sc; h += sh;
+    });
+    return { c, h };
+  }
+
+  // ---------- romaji -> katakana ----------
+  const R2K = {};
+  for (const k in T) if (T[k][1].length && !'ヰヱヲヂヅ'.includes(k)) R2K[T[k][1]] = k;
+  Object.assign(R2K, { si:'シ', ti:'チ', tu:'ツ', hu:'フ', zi:'ジ', di:'ヂ', du:'ヅ', wo:'ヲ', wa:'ワ', n:'ン',
+    fa:'ファ', fi:'フィ', fe:'フェ', fo:'フォ', va:'ヴァ', vi:'ヴィ', ve:'ヴェ', vo:'ヴォ', ti_:'ティ', she:'シェ', che:'チェ', je:'ジェ', ye:'イェ', wi:'ウィ', we:'ウェ' });
+  for (const [c, i] of [['k','キ'],['g','ギ'],['n','ニ'],['h','ヒ'],['m','ミ'],['r','リ'],['b','ビ'],['p','ピ']])
+    for (const [v, s] of [['a','ャ'],['u','ュ'],['o','ョ']]) R2K[c + 'y' + v] = i + s;
+  for (const [c, i] of [['sh','シ'],['ch','チ'],['j','ジ']]) for (const [v, s] of [['a','ャ'],['u','ュ'],['o','ョ']]) R2K[c + v] = i + s;
+  for (const [c, i] of [['sy','シ'],['ty','チ'],['zy','ジ'],['jy','ジ']]) for (const [v, s] of [['a','ャ'],['u','ュ'],['o','ョ']]) R2K[c + v] = i + s;
+  const LONG = { 'ā':'a', 'ī':'i', 'ū':'u', 'ē':'e', 'ō':'o', 'â':'a', 'î':'i', 'û':'u', 'ê':'e', 'ô':'o' };
+  function romajiToKana(w) {
+    w = w.toLowerCase().replace(/[āīūēōâîûêô]/g, c => LONG[c] + '-');
+    let out = '', i = 0;
+    while (i < w.length) {
+      const ch = w[i];
+      if (ch === '-') { out += 'ー'; i++; continue; }
+      if (ch === "'" || ch === '’') { i++; continue; }
+      if (ch === 'n' && (i + 1 >= w.length || !/[aiueoy]/.test(w[i + 1]))) { out += 'ン'; i++; continue; }
+      if (/[bcdfghjkmprstvwz]/.test(ch) && w[i + 1] === ch) { out += 'ッ'; i++; continue; }
+      if (ch === 't' && w.slice(i + 1, i + 3) === 'ch') { out += 'ッ'; i++; continue; }
+      let hit = null;
+      for (let len = 3; len >= 1; len--) { const p = w.slice(i, i + len); if (R2K[p]) { hit = p; break; } }
+      if (!hit) return null;
+      out += R2K[hit]; i += hit.length;
+    }
+    return out;
+  }
+  function romaji(w) { const k = romajiToKana(w); return k ? kana(k).c : null; }
+
+  // ---------- whole line ----------
+  // tok: kuromoji tokenizer or null. Returns { c, h, kana, missing } (missing = kanji left unread)
+  function line(l, tok) {
+    const parts = [];   // { c, h, k } or string
+    let missing = false;
+    if (tok) {
+      for (const t of tok.tokenize(l)) {
+        const sf = t.surface_form;
+        const pr = t.pronunciation && t.pronunciation !== '*' ? t.pronunciation : (KANA.test(sf) && !/[一-鿿]/.test(sf) ? sf : null);
+        if (pr && t.pos !== '記号') {
+          // auxiliaries and suffixes stay glued to the word before them (楽しかった -> таносикатта)
+          const glue = t.pos === '助動詞' || t.pos_detail_1 === '接尾' || (t.pos_detail_1 === '接続助詞' && /^[てで]$/.test(sf)) || (t.pos_detail_1 === '非自立' && t.pos === '動詞');
+          const prev = parts[parts.length - 1];
+          if (glue && prev && typeof prev !== 'string') prev.k += '|' + toKata(pr);
+          else parts.push({ k: toKata(pr) });
+        }
+        else { if (/[一-鿿]/.test(sf)) missing = true; parts.push(sf); }
+      }
+      for (const p of parts) if (typeof p !== 'string') { Object.assign(p, kana(p.k)); p.k = p.k.replace(/\|/g, ''); }
+    } else {
+      // no dictionary: read kana runs, keep kanji as they are
+      l.split(/([぀-ヿ]+)/).forEach(seg => {
+        if (!seg) return;
+        if (KANA.test(seg)) { const r = kana(seg); parts.push({ c: r.c, h: r.h, k: toKata(seg) }); }
+        else { if (/[一-鿿]/.test(seg)) missing = true; parts.push(seg); }
+      });
+    }
+    // join: words separated by spaces, punctuation glued
+    const PUNCT = { '、':', ', '。':'. ', '！':'! ', '？':'? ', '「':'«', '」':'»', '『':'«', '』':'»', '（':' (', '）':') ', '・':' ', '　':' ', '〜':'~', '～':'~' };
+    let c = '', h = '', k = '';
+    for (const p of parts) {
+      if (typeof p === 'string') {
+        const s = p.replace(/[、。！？「」『』（）・　〜～]/g, m => PUNCT[m]);
+        const gap = /[\u4e00-\u9fff]/.test(p) ? ' ' : '';
+        c += (c && gap && !/\s$/.test(c) ? gap : '') + s; h += (h && gap && !/\s$/.test(h) ? gap : '') + s; k += p; continue;
+      }
+      const sp = c && !/[\s(«~]$/.test(c) ? ' ' : '';
+      c += sp + p.c; h += (h && !/[\s(«~]$/.test(h) ? ' ' : '') + p.h; k += p.k;
+    }
+    const tidy = s => s.replace(/ {2,}/g, ' ').replace(/ ([,.!?»)])/g, '$1').trim();
+    const cap = s => s.replace(/^\p{Ll}/u, x => x.toUpperCase());
+    return { c: cap(tidy(c)), h: cap(tidy(h)), kana: k, missing };
+  }
+
+  return { KANA, kana, line, romaji, romajiToKana, toKata };
+})();
 // European languages -> Russian letters (practical transcription), plus language detection
 const LAT = (() => {
   const VL = 'aeiouyäöüéèêëàâîïôûùœæåáíóú';          // Latin vowels
@@ -423,7 +567,7 @@ const LAT = (() => {
     return r == null ? null : r;
   }
 
-  const ENGINES = { sr, fi, sq, de, fr, en, es, it, pt, br: brz };
+  const ENGINES = { sr, fi, sq, de, fr, en, es, it, pt, br: brz, ja: w => (typeof JA !== 'undefined' ? JA.romaji(w) : null) };
 
   // Word -> tokens: [text] or [text, {c: stressed vowel, stress: true}, text]
   function word(orig, lang) {
@@ -450,6 +594,7 @@ const LAT = (() => {
 
   // ---------- detection ----------
   const SW = {
+    ja: 'wa no ga wo o ni de to mo ka yo ne desu da watashi boku ore kimi anata kokoro ai yume sora naze kitto zutto mada tte kara made dake shite iru suki koi namida sekai hikari itsumo nai kono sono ano',
     es: 'el la los las que de y en un una por para con no te mi tu yo es se me lo como más pero amor corazón quiero todo nada porque cuando bailar contigo siempre vida eres está',
     it: 'il la le lo gli di che e è un una per con non ti mi io tu sei sono come ma più amore cuore questo quando perché voglio ancora vita sempre della nel nella del dei sei così molto tutto niente mai felice stare essere',
     pt: 'o a os as que de e em um uma não você eu meu minha com para por mais mas coração amor te me se quero tudo nada quando porque vida sempre está estou pra',
@@ -461,7 +606,7 @@ const LAT = (() => {
     sr: 'i je da se ne u na sa ti ja mi ali što šta kao sam si bez to ljubav tebe mene moja moj sve nisam samo kad zdravo hvala noć dan srce volim ljubavi tebi',
   };
   const SWS = Object.fromEntries(Object.entries(SW).map(([k, v]) => [k, new Set(v.split(' '))]));
-  const MARKS = { es: /[ñ¿¡]|ción\b|ll/g, it: /gli|zz|cch|[òìù]|zione\b/g, pt: /[ãõ]|ção\b|nh|lh|ç/g, sr: /[čćšžđјљњђћџ]|lj|dj/g, sq: /[ëç]|xh|\bdh|gj/g, fi: /[äö]|yy|ää|ii|uu|aa|oo/g, de: /[ßüöä]|sch|tz/g, fr: /[éèêàçœùâîô]|eau|oi/g, en: /\b(th|wh)|w|ing\b/g };
+  const MARKS = { ja: /\b(sh|ch|ts)[aiueo]|[ōū]|\b\w+(masu|mashita|tte|nai|teru)\b|\bkya|\bryo/g, es: /[ñ¿¡]|ción\b|ll/g, it: /gli|zz|cch|[òìù]|zione\b/g, pt: /[ãõ]|ção\b|nh|lh|ç/g, sr: /[čćšžđјљњђћџ]|lj|dj/g, sq: /[ëç]|xh|\bdh|gj/g, fi: /[äö]|yy|ää|ii|uu|aa|oo/g, de: /[ßüöä]|sch|tz/g, fr: /[éèêàçœùâîô]|eau|oi/g, en: /\b(th|wh)|w|ing\b/g };
   function scores(line) {
     const low = line.toLowerCase().replace(/’/g, "'");
     const words = [...new Set(low.match(/[\p{L}']+/gu) || [])];   // repeated "na na na" counts once
@@ -555,6 +700,49 @@ const TGT = (() => {
   };
   T.br = T.pt;
 
+  // ---------- Russian letters -> katakana for Japanese readers ----------
+  const KJ = {   // consonant -> kana for vowels a i u e o; ".": consonant alone
+    '':  ['ア','イ','ウ','エ','オ','ウ'],
+    б: ['バ','ビ','ブ','ベ','ボ','ブ'], в: ['ヴァ','ヴィ','ヴ','ヴェ','ヴォ','ヴ'], г: ['ガ','ギ','グ','ゲ','ゴ','グ'],
+    д: ['ダ','ディ','ドゥ','デ','ド','ド'], ж: ['ジャ','ジ','ジュ','ジェ','ジョ','ジュ'], з: ['ザ','ズィ','ズ','ゼ','ゾ','ズ'],
+    к: ['カ','キ','ク','ケ','コ','ク'], л: ['ラ','リ','ル','レ','ロ','ル'], р: ['ラ','リ','ル','レ','ロ','ル'],
+    м: ['マ','ミ','ム','メ','モ','ム'], н: ['ナ','ニ','ヌ','ネ','ノ','ン'], п: ['パ','ピ','プ','ペ','ポ','プ'],
+    с: ['サ','スィ','ス','セ','ソ','ス'], т: ['タ','ティ','トゥ','テ','ト','ト'], ф: ['ファ','フィ','フ','フェ','フォ','フ'],
+    х: ['ハ','ヒ','フ','ヘ','ホ','フ'], η: ['ハ','ヒ','フ','ヘ','ホ','フ'], ц: ['ツァ','ツィ','ツ','ツェ','ツォ','ツ'],
+    ч: ['チャ','チ','チュ','チェ','チョ','チ'], ш: ['シャ','シ','シュ','シェ','ショ','シュ'], щ: ['シチャ','シチ','シチュ','シチェ','シチョ','シチ'],
+    Ŋ: ['ンガ','ンギ','ング','ンゲ','ンゴ','ン'], J: ['ジャ','ジ','ジュ','ジェ','ジョ','ジ'], R: ['ラ','リ','ル','レ','ロ','ル'], W: ['ワ','ウィ','ウ','ウェ','ウォ','ウ'],
+  };
+  const KJ_I = { б:'ビ', в:'ヴィ', г:'ギ', д:'ヂ', з:'ジ', к:'キ', л:'リ', р:'リ', м:'ミ', н:'ニ', п:'ピ', с:'シ', т:'チ', ф:'フィ', х:'ヒ', η:'ヒ', ц:'チ' };
+  const VI = { а:0, и:1, ы:1, ɨ:1, у:2, э:3, ʌ:2, о:4, ä:3, ö:3, ü:2 };
+  const SOFT_V = { я:[0,'ャ'], ю:[2,'ュ'], ё:[4,'ョ'], е:[3,'ェ'] };
+  function toKatakana(w) {
+    let s = w.replace(/[А-ЯЁΗ]/g, c => c.toLowerCase()).replace(/дж/g, 'J').replace(/[ьъ:]/g, m => m === 'ь' ? 'ь' : m === ':' ? 'ー' : '');
+    const ch = Array.from(s); let out = '';
+    for (let i = 0; i < ch.length; i++) {
+      const c = ch[i], nx = ch[i + 1];
+      if (c === 'ー') { out += 'ー'; continue; }
+      if (c === 'ь') continue;
+      if (c === 'й') { out += 'イ'; continue; }
+      if (VI[c] !== undefined) { out += KJ[''][VI[c]]; continue; }
+      if (SOFT_V[c]) { const [vi, sm] = SOFT_V[c]; out += c === 'е' ? 'イェ' : ['ヤ','','ユ','','ヨ'][vi]; continue; }
+      if (KJ[c]) {
+        if (nx === c && c !== 'н' && c !== 'м') { if (out && !/[ッン・]$/.test(out)) out += 'ッ'; continue; }
+        if (nx && VI[nx] !== undefined) { out += KJ[c][VI[nx]]; i++; continue; }
+        const nx2 = nx === 'ь' ? ch[i + 2] : nx;
+        if (nx2 && SOFT_V[nx2]) {
+          const [vi, sm] = SOFT_V[nx2];
+          if (nx2 === 'е') out += KJ[c][3];
+          else if ('жчшщJ'.includes(c)) out += KJ[c][vi];
+          else out += (KJ_I[c] || KJ[c][1]) + sm;
+          i += nx === 'ь' ? 2 : 1; continue;
+        }
+        out += KJ[c][5]; continue;
+      }
+      out += c;
+    }
+    return out;
+  }
+
   // Palladius (Chinese) digraphs mean other sounds for a Western reader
   function zhPre(s) {
     return s.replace(/юй/g, 'ü').replace(/ю(?=э|ань|нь)/g, 'ü')
@@ -596,6 +784,10 @@ const TGT = (() => {
   // Convert a string of Russian letters; src 'zh' treats each word as one Palladius syllable
   function conv(s, tg, src) {
     if (tg === 'ru' || !s) return s;
+    if (tg === 'ja') {
+      if (src === 'zh') return s.replace(/[а-яёА-ЯЁ]+/g, w => toKatakana(zhPre(w.toLowerCase())));
+      return s.replace(/[а-яёА-ЯЁ:]+/g, w => toKatakana(w)).replace(/ /g, '・').replace(/・(?=[,.!?)»])|(?<=[,.!?(«])・/g, ' ').replace(/・{2,}/g, '・');
+    }
     const C = '[бвгджзклмнпрстфхцчшщηΗБВГДЖЗКЛМНПРСТФХЦЧШЩ]';
     if (['ko', 'fi', 'sq', 'en'].includes(src)) s = s.replace(/х/g, 'η').replace(/Х/g, 'Η');
     if (src === 'de') s = s.replace(/(^|(?<=[^а-яё]))х|х(?=[аеёиоуыэюя])/gi, m => m === 'Х' ? 'Η' : 'η');
@@ -635,20 +827,21 @@ const FLAGS = (() => {
     gb: '<rect width="30" height="20" fill="#012169"/><path d="M0 0L30 20M30 0L0 20" stroke="#fff" stroke-width="4"/><path d="M0 0L30 20M30 0L0 20" stroke="#c8102e" stroke-width="1.6"/><path d="M15 0V20M0 10H30" stroke="#fff" stroke-width="6"/><path d="M15 0V20M0 10H30" stroke="#c8102e" stroke-width="3.4"/>',
     al: '<rect width="30" height="20" fill="#e41e20"/><path fill="#000" d="M15 4.2l1.2 1.6 2.6-1.4-.6 2 3-.4-1.6 1.8 2.6.6-2.6 1.2 1.4 1.8-2.6-.4.2 2-2.2-1.2-.6 2.6 1.2 1.6H14l1.2-1.6-.6-2.6-2.2 1.2.2-2-2.6.4 1.4-1.8-2.6-1.2 2.6-.6-1.6-1.8 3 .4-.6-2 2.6 1.4z"/>',
     cn: '<rect width="30" height="20" fill="#de2910"/>' + star(5, 5, 3) + star(10, 2, 1) + star(12, 4, 1) + star(12, 7, 1) + star(10, 9, 1),
+    jp: '<rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="6" fill="#bc002d"/>',
     kr: '<rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="4.5" fill="#0047a0"/><path d="M10.5 10a4.5 4.5 0 0 1 9 0a2.25 2.25 0 0 1-4.5 0a2.25 2.25 0 0 0-4.5 0Z" fill="#cd2e3a"/>'
       + '<g stroke="#000" stroke-width="1"><path d="M4 4.5l3-2.2M4.6 5.3l3-2.2M5.2 6.1l3-2.2"/><path d="M22.8 15.9l3-2.2M23.4 16.7l3-2.2M24 17.5l3-2.2"/><path d="M22.8 4.1l3 2.2M23.4 3.3l3 2.2M24 2.5l3 2.2"/><path d="M4 15.5l3 2.2M4.6 14.7l3 2.2M5.2 13.9l3 2.2"/></g>',
     auto: '<rect width="30" height="20" rx="3" fill="var(--soft)"/><path d="M9 15l6-10 6 10M11.4 11h7.2" stroke="var(--accent)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
     off: '<rect width="30" height="20" rx="3" fill="var(--soft)"/><path d="M10 10h10" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"/>',
   };
-  const BY_LANG = { ru:'ru', en:'gb', de:'de', fr:'fr', es:'es', it:'it', pt:'pt', br:'br', fi:'fi', sq:'al', sr:'rs', zh:'cn', ko:'kr', auto:'auto', off:'off' };
+  const BY_LANG = { ru:'ru', en:'gb', de:'de', fr:'fr', es:'es', it:'it', pt:'pt', br:'br', fi:'fi', sq:'al', sr:'rs', zh:'cn', ko:'kr', ja:'jp', auto:'auto', off:'off' };
   return code => `<svg class="flag" viewBox="0 0 30 20" aria-hidden="true">${S[BY_LANG[code] || code] || ''}</svg>`;
 })();
 
 // ---------- Interface languages ----------
-const UI_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'it', 'pt', 'br'];
+const UI_LANGS = ['ru', 'en', 'de', 'fr', 'es', 'it', 'pt', 'br', 'ja'];
 const BCP = { br: 'pt-BR', pt: 'pt-PT', sq: 'sq', sr: 'sr-Latn' };
 const LANG_FALLBACK = { ru:'Русский', en:'English', de:'Deutsch', fr:'Français', es:'Español', it:'Italiano', pt:'Português (Portugal)', br:'Português (Brasil)',
-  fi:'Suomi', sq:'Shqip', sr:'Srpski', zh:'中文', ko:'한국어' };
+  fi:'Suomi', sq:'Shqip', sr:'Srpski', zh:'中文', ko:'한국어', ja:'日本語' };
 // Name of language `code` written in interface language `ui`
 function langName(code, ui) {
   try {
@@ -660,9 +853,10 @@ function langName(code, ui) {
 
 const I18N = {
   ru: {
+    jaLoading: ' Загружаю японский словарь…', jaFailed: ' Японский словарь не загрузился: кандзи останутся как есть, кана и ромадзи работают.',
     install: 'Установить приложение', iosHint: 'На iPhone: нажми «Поделиться», затем «На экран Домой», и конвертер появится как приложение.',
     title: 'Как звучит текст песни', uiLabel: 'Язык страницы',
-    lead: 'Вставь текст как на Genius: китайский (иероглифы или пиньинь), корейский, английский, французский, немецкий, испанский, итальянский, португальский, финский, албанский или сербский. Получишь, как это звучит, теми буквами, которые выберешь.',
+    lead: 'Вставь текст как на Genius: китайский (иероглифы или пиньинь), японский, корейский, английский, французский, немецкий, испанский, итальянский, португальский, финский, албанский или сербский. Получишь, как это звучит, теми буквами, которые выберешь.',
     textLabel: 'Текст', go: 'Транскрибировать', copy: 'Копировать результат', clear: 'Очистить', showSrc: 'Показывать оригинал', colors: 'Цвета тонов',
     targetLabel: 'Транскрипция для:', langLabel: 'Язык текста:', cyr: 'Русский (кириллица)', auto: 'Определять сам', off: 'Не трогать',
     styleLabel: 'Запись:', std: 'по правилам', snd: 'ближе к звучанию', toneLabel: 'Тоны и ударения:', marks: 'значки', nums: 'цифры', none: 'без тонов',
@@ -677,9 +871,10 @@ const I18N = {
     sec: { intro:'Вступление', verse:'Куплет', prechorus:'Предприпев', chorus:'Припев', bridge:'Бридж', interlude:'Проигрыш', outro:'Концовка', rap:'Рэп', spoken:'Речитатив', choir:'Хор' },
   },
   en: {
+    jaLoading: ' Loading the Japanese dictionary…', jaFailed: ' The Japanese dictionary did not load, so kanji stay as they are; kana and romaji still work.',
     install: 'Install app', iosHint: 'On iPhone: tap Share, then Add to Home Screen, and it opens like an app.',
     title: 'How the lyrics sound', uiLabel: 'Page language',
-    lead: 'Paste lyrics the way Genius shows them: Chinese (characters or pinyin), Korean, English, French, German, Spanish, Italian, Portuguese, Finnish, Albanian or Serbian. You get how they sound, spelled the way your chosen readers would say them.',
+    lead: 'Paste lyrics the way Genius shows them: Chinese (characters or pinyin), Japanese, Korean, English, French, German, Spanish, Italian, Portuguese, Finnish, Albanian or Serbian. You get how they sound, spelled the way your chosen readers would say them.',
     textLabel: 'Lyrics', go: 'Transcribe', copy: 'Copy result', clear: 'Clear', showSrc: 'Show original', colors: 'Tone colours',
     targetLabel: 'Transcribe for:', langLabel: 'Lyrics language:', cyr: 'Russian (Cyrillic)', auto: 'Detect automatically', off: 'Leave as is',
     styleLabel: 'Spelling:', std: 'standard', snd: 'closer to the sound', toneLabel: 'Tones and stress:', marks: 'marks', nums: 'numbers', none: 'no tones',
@@ -697,9 +892,10 @@ const I18N = {
     sec: { intro:'Intro', verse:'Verse', prechorus:'Pre-chorus', chorus:'Chorus', bridge:'Bridge', interlude:'Interlude', outro:'Outro', rap:'Rap', spoken:'Spoken', choir:'Choir' },
   },
   de: {
+    jaLoading: ' Das japanische Wörterbuch lädt…', jaFailed: ' Das japanische Wörterbuch wurde nicht geladen; Kanji bleiben unverändert, Kana und Romaji funktionieren.',
     install: 'App installieren', iosHint: 'Auf dem iPhone: Teilen antippen, dann „Zum Home-Bildschirm“ – danach öffnet es sich wie eine App.',
     title: 'Wie der Songtext klingt', uiLabel: 'Sprache der Seite',
-    lead: 'Füge den Songtext so ein, wie Genius ihn zeigt: Chinesisch (Schriftzeichen oder Pinyin), Koreanisch, Englisch, Französisch, Deutsch, Spanisch, Italienisch, Portugiesisch, Finnisch, Albanisch oder Serbisch. Du bekommst, wie er klingt, in der Schreibweise deiner Wahl.',
+    lead: 'Füge den Songtext so ein, wie Genius ihn zeigt: Chinesisch (Schriftzeichen oder Pinyin), Japanisch, Koreanisch, Englisch, Französisch, Deutsch, Spanisch, Italienisch, Portugiesisch, Finnisch, Albanisch oder Serbisch. Du bekommst, wie er klingt, in der Schreibweise deiner Wahl.',
     textLabel: 'Songtext', go: 'Umschreiben', copy: 'Ergebnis kopieren', clear: 'Leeren', showSrc: 'Original anzeigen', colors: 'Tonfarben',
     targetLabel: 'Umschrift für:', langLabel: 'Sprache des Textes:', cyr: 'Russisch (kyrillisch)', auto: 'Automatisch erkennen', off: 'Nicht ändern',
     styleLabel: 'Schreibweise:', std: 'nach Regeln', snd: 'näher am Klang', toneLabel: 'Töne und Betonung:', marks: 'Zeichen', nums: 'Ziffern', none: 'ohne Töne',
@@ -717,9 +913,10 @@ const I18N = {
     sec: { intro:'Intro', verse:'Strophe', prechorus:'Pre-Chorus', chorus:'Refrain', bridge:'Bridge', interlude:'Zwischenspiel', outro:'Outro', rap:'Rap', spoken:'Gesprochen', choir:'Chor' },
   },
   fr: {
+    jaLoading: ' Chargement du dictionnaire japonais…', jaFailed: ' Le dictionnaire japonais n’a pas pu se charger : les kanji restent tels quels, les kana et le rōmaji fonctionnent.',
     install: 'Installer l’application', iosHint: 'Sur iPhone : touche Partager, puis « Sur l’écran d’accueil », et elle s’ouvre comme une application.',
     title: 'Comment sonnent les paroles', uiLabel: 'Langue de la page',
-    lead: 'Colle les paroles comme sur Genius : chinois (caractères ou pinyin), coréen, anglais, français, allemand, espagnol, italien, portugais, finnois, albanais ou serbe. Tu obtiens leur prononciation, écrite comme tu le choisis.',
+    lead: 'Colle les paroles comme sur Genius : chinois (caractères ou pinyin), japonais, coréen, anglais, français, allemand, espagnol, italien, portugais, finnois, albanais ou serbe. Tu obtiens leur prononciation, écrite comme tu le choisis.',
     textLabel: 'Paroles', go: 'Transcrire', copy: 'Copier le résultat', clear: 'Effacer', showSrc: 'Afficher l’original', colors: 'Couleurs des tons',
     targetLabel: 'Transcrire pour :', langLabel: 'Langue des paroles :', cyr: 'Russe (cyrillique)', auto: 'Détection automatique', off: 'Ne pas toucher',
     styleLabel: 'Écriture :', std: 'selon les règles', snd: 'plus proche du son', toneLabel: 'Tons et accent :', marks: 'signes', nums: 'chiffres', none: 'sans tons',
@@ -737,9 +934,10 @@ const I18N = {
     sec: { intro:'Intro', verse:'Couplet', prechorus:'Pré-refrain', chorus:'Refrain', bridge:'Pont', interlude:'Interlude', outro:'Outro', rap:'Rap', spoken:'Parlé', choir:'Chœur' },
   },
   es: {
+    jaLoading: ' Cargando el diccionario japonés…', jaFailed: ' El diccionario japonés no se cargó: los kanji quedan como están; kana y romaji funcionan.',
     install: 'Instalar la app', iosHint: 'En iPhone: toca Compartir y luego «Añadir a pantalla de inicio», y se abrirá como una app.',
     title: 'Cómo suena la letra', uiLabel: 'Idioma de la página',
-    lead: 'Pega la letra como aparece en Genius: chino (caracteres o pinyin), coreano, inglés, francés, alemán, español, italiano, portugués, finés, albanés o serbio. Obtendrás cómo suena, escrita como tú elijas.',
+    lead: 'Pega la letra como aparece en Genius: chino (caracteres o pinyin), japonés, coreano, inglés, francés, alemán, español, italiano, portugués, finés, albanés o serbio. Obtendrás cómo suena, escrita como tú elijas.',
     textLabel: 'Letra', go: 'Transcribir', copy: 'Copiar resultado', clear: 'Borrar', showSrc: 'Mostrar original', colors: 'Colores de tonos',
     targetLabel: 'Transcribir para:', langLabel: 'Idioma de la letra:', cyr: 'Ruso (cirílico)', auto: 'Detectar automáticamente', off: 'No tocar',
     styleLabel: 'Escritura:', std: 'según las reglas', snd: 'más cerca del sonido', toneLabel: 'Tonos y acento:', marks: 'signos', nums: 'números', none: 'sin tonos',
@@ -757,9 +955,10 @@ const I18N = {
     sec: { intro:'Intro', verse:'Verso', prechorus:'Pre-estribillo', chorus:'Estribillo', bridge:'Puente', interlude:'Interludio', outro:'Outro', rap:'Rap', spoken:'Hablado', choir:'Coro' },
   },
   it: {
+    jaLoading: ' Caricamento del dizionario giapponese…', jaFailed: ' Il dizionario giapponese non si è caricato: i kanji restano come sono, kana e rōmaji funzionano.',
     install: 'Installa l’app', iosHint: 'Su iPhone: tocca Condividi, poi «Aggiungi alla schermata Home», e si apre come un’app.',
     title: 'Come suona il testo', uiLabel: 'Lingua della pagina',
-    lead: 'Incolla il testo come appare su Genius: cinese (caratteri o pinyin), coreano, inglese, francese, tedesco, spagnolo, italiano, portoghese, finlandese, albanese o serbo. Ottieni come suona, scritto nel modo che scegli.',
+    lead: 'Incolla il testo come appare su Genius: cinese (caratteri o pinyin), giapponese, coreano, inglese, francese, tedesco, spagnolo, italiano, portoghese, finlandese, albanese o serbo. Ottieni come suona, scritto nel modo che scegli.',
     textLabel: 'Testo', go: 'Trascrivi', copy: 'Copia risultato', clear: 'Cancella', showSrc: 'Mostra originale', colors: 'Colori dei toni',
     targetLabel: 'Trascrivi per:', langLabel: 'Lingua del testo:', cyr: 'Russo (cirillico)', auto: 'Rileva automaticamente', off: 'Non toccare',
     styleLabel: 'Scrittura:', std: 'secondo le regole', snd: 'più vicina al suono', toneLabel: 'Toni e accento:', marks: 'segni', nums: 'numeri', none: 'senza toni',
@@ -777,9 +976,10 @@ const I18N = {
     sec: { intro:'Intro', verse:'Strofa', prechorus:'Pre-ritornello', chorus:'Ritornello', bridge:'Ponte', interlude:'Interludio', outro:'Outro', rap:'Rap', spoken:'Parlato', choir:'Coro' },
   },
   pt: {
+    jaLoading: ' A carregar o dicionário japonês…', jaFailed: ' O dicionário japonês não carregou: os kanji ficam como estão; kana e romaji funcionam.',
     install: 'Instalar a app', iosHint: 'No iPhone: toca em Partilhar e depois em «Adicionar ao ecrã principal», e abre como uma app.',
     title: 'Como soa a letra', uiLabel: 'Idioma da página',
-    lead: 'Cola a letra como aparece no Genius: chinês (caracteres ou pinyin), coreano, inglês, francês, alemão, espanhol, italiano, português, finlandês, albanês ou sérvio. Obténs a forma como soa, escrita como escolheres.',
+    lead: 'Cola a letra como aparece no Genius: chinês (caracteres ou pinyin), japonês, coreano, inglês, francês, alemão, espanhol, italiano, português, finlandês, albanês ou sérvio. Obténs a forma como soa, escrita como escolheres.',
     textLabel: 'Letra', go: 'Transcrever', copy: 'Copiar resultado', clear: 'Limpar', showSrc: 'Mostrar original', colors: 'Cores dos tons',
     targetLabel: 'Transcrever para:', langLabel: 'Idioma da letra:', cyr: 'Russo (cirílico)', auto: 'Detetar automaticamente', off: 'Não mexer',
     styleLabel: 'Escrita:', std: 'segundo as regras', snd: 'mais perto do som', toneLabel: 'Tons e acento:', marks: 'sinais', nums: 'números', none: 'sem tons',
@@ -796,11 +996,34 @@ const I18N = {
     wrongH: 'Se o idioma for mal detetado', wrongP: 'O idioma é detetado linha a linha, e as linhas curtas ou duvidosas ficam com o idioma da canção toda. Se estiver errado, escolhe-o em «Idioma da letra». Uma romanização escrita de ouvido («czyanshan» em vez de «jiāngshān») não se consegue ler em nenhum modo.',
     sec: { intro:'Introdução', verse:'Verso', prechorus:'Pré-refrão', chorus:'Refrão', bridge:'Ponte', interlude:'Interlúdio', outro:'Final', rap:'Rap', spoken:'Falado', choir:'Coro' },
   },
+  ja: {
+    install: 'アプリをインストール', iosHint: 'iPhoneでは「共有」→「ホーム画面に追加」で、アプリのように開けます。',
+    title: '歌詞の発音', uiLabel: 'ページの言語',
+    lead: 'Geniusの歌詞をそのまま貼り付けてください。中国語（漢字またはピンイン）、日本語、韓国語、英語、フランス語、ドイツ語、スペイン語、イタリア語、ポルトガル語、フィンランド語、アルバニア語、セルビア語に対応。選んだ読み手向けの文字で、どう聞こえるかを書き出します。',
+    textLabel: '歌詞', go: '変換する', copy: '結果をコピー', clear: 'クリア', showSrc: '原文を表示', colors: '声調の色分け',
+    targetLabel: '表記の対象：', langLabel: '歌詞の言語：', cyr: 'ロシア語（キリル文字）', auto: '自動判定', off: '変換しない',
+    styleLabel: '表記：', std: '規則どおり', snd: '発音に近く', toneLabel: '声調とアクセント：', marks: '記号', nums: '数字', none: '表示しない',
+    t1: '高く平らに。病院で言う長い「あー」のように', t2: '上がる。驚いた「え？」のように', t3: '低く沈んでから上がる。考え込む「うーん」のように', t4: '鋭く下がる。命令の「止まれ！」のように', t5: '短く軽く、強調しない（le, de, zi）', light: '軽声',
+    empty: 'ここに変換結果が表示されます。', done: n => `完了：${n}行。`, nothing: 'まだ変換するものがありません。歌詞を貼り付けてください。',
+    langsUsed: l => ` 歌詞の言語：${l}。`, writtenFor: l => ` 表記の対象：${l}。`, enLoading: ' 英語の辞書を読み込み中…',
+    enFailed: ' 英語の辞書を読み込めなかったため、英語の行はそのままです。', missingDict: ' 辞書を読み込めなかったため、漢字だけの行は変換していません。ピンインを添えてください。',
+    jaLoading: ' 日本語の辞書を読み込み中…', jaFailed: ' 日本語の辞書を読み込めなかったため、漢字はそのまま残ります。かなかローマ字を使ってください。',
+    copied: 'コピーしました。', nothingToCopy: 'まだコピーするものがありません。', selected: 'テキストを選択しました。Ctrl+C（またはメニューの「コピー」）を押してください。',
+    guide: '変換結果の読み方',
+    guideP: ['<b>中国語の声調。</b> 各音節の上の記号が声調です。灰色の小さい音節は軽声で、強く読みません。第3声が2つ続くと前が第2声になり、一と不も後ろの音節によって声調が変わります。変換ツールが自動で処理します。',
+      '<b>歌では</b> メロディーが声調をほぼ置き換えるので、リズムと正確な音のほうが大切です。',
+      '<b>日本語</b> は漢字を辞書で読みます（辞書は日本語の歌詞があるときだけ読み込みます）。助詞の「は・へ・を」は発音どおり「ワ・エ・オ」になります。',
+      '<b>ほかの言語。</b> 英語は発音辞書（12万5千語）から読み、強く読む母音に印を付けます。そのほかの言語は綴りの規則で読むため、珍しいフランス語の単語は少しずれることがあります。',
+      '文字ごとの詳しい表は、ロシア文字での表記向けにロシア語で書かれています。見るにはページをロシア語に切り替えてください。'],
+    wrongH: '言語の判定が違うとき', wrongP: '言語は行ごとに判定し、短くてはっきりしない行は歌全体の言語に合わせます。違っていたら「歌詞の言語」で選んでください。耳で聞いて書いたローマ字（jiāngshān の代わりに czyanshan など）は、どのモードでも読めません。',
+    sec: { intro:'イントロ', verse:'Aメロ', prechorus:'Bメロ', chorus:'サビ', bridge:'ブリッジ', interlude:'間奏', outro:'アウトロ', rap:'ラップ', spoken:'語り', choir:'コーラス' },
+  },
 };
 // Brazilian Portuguese: same as Portugal with Brazilian wording
 I18N.br = Object.assign({}, I18N.pt, {
+  jaLoading: ' Carregando o dicionário japonês…',
   install: 'Instalar o app', iosHint: 'No iPhone: toque em Compartilhar e depois em «Adicionar à Tela de Início», e ele abre como um app.',
-  lead: 'Cole a letra como aparece no Genius: chinês (caracteres ou pinyin), coreano, inglês, francês, alemão, espanhol, italiano, português, finlandês, albanês ou sérvio. Você recebe como ela soa, escrita do jeito que escolher.',
+  lead: 'Cole a letra como aparece no Genius: chinês (caracteres ou pinyin), japonês, coreano, inglês, francês, alemão, espanhol, italiano, português, finlandês, albanês ou sérvio. Você recebe como ela soa, escrita do jeito que escolher.',
   auto: 'Detectar automaticamente', t2: 'Subindo, como um «Sério?» surpreso', t3: 'Baixo e descendo, como um «hmm» pensativo', t4: 'Queda brusca, como a ordem «Pare!»',
   enLoading: ' O dicionário de inglês ainda está carregando…', missingDict: ' As linhas só com caracteres foram ignoradas porque o dicionário não carregou. Adicione o pinyin a elas.',
   nothing: 'Nada para transcrever: cole uma letra.', selected: 'O texto está selecionado. Aperte Ctrl+C (ou Copiar no menu).',
@@ -895,7 +1118,7 @@ You might also like
     return ok / words.length;
   }
   // Without hanzi anywhere in the text, plain Latin counts as pinyin only with tone marks or numbers
-  let docHan = true;
+  let docHan = true, docJa = false, needJa = false, jaMissing = false, jaTok = null, jaState = 'idle';
   const TONEMARK = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]|[a-zü][1-5]\b/i;
   const isPinyin = l => !HAN.test(l) && pinyinScore(l) >= 0.8 && (docHan || TONEMARK.test(l));
 
@@ -940,12 +1163,12 @@ You might also like
 
   // Genius section headers like [副歌], [主歌 2: …], [Chorus]
   const SECTIONS = [
-    [/^(前奏|引子|intro|인트로|uvod|introducija|johdanto|hyrje|introducción|introduzione|introdução|einleitung)/i, 'intro'],
-    [/^(预副歌|預副歌|导歌|導歌|pre-?chorus|프리코러스|pre-?estribillo|pre-?ritornello|pré-?refrão|pré-?refrain)/i, 'prechorus'],
-    [/^(副歌|chorus|hook|후렴|코러스|pripev|kertosäe|refren|refreni|refrain|estribillo|ritornello|refrão|coro)/i, 'chorus'],
-    [/^(主歌|verse|벌스|절|strofa|strofë|säkeistö|couplet|strophe|verso|estrofa)/i, 'verse'],
-    [/^(桥段|橋段|过渡|過渡|bridge|브릿지|bridž|most|pont|puente|ponte)/i, 'bridge'], [/^(间奏|間奏|interlude|간주|interludio|interlúdio|zwischenspiel)/i, 'interlude'],
-    [/^(尾奏|结尾|結尾|outro|아웃트로|kraj|završetak|loppu|fund|final|finale)/i, 'outro'], [/^(说唱|說唱|rap|랩)/i, 'rap'], [/^(念白|独白|獨白|口白|spoken)/i, 'spoken'],
+    [/^(前奏|引子|イントロ|intro|인트로|uvod|introducija|johdanto|hyrje|introducción|introduzione|introdução|einleitung)/i, 'intro'],
+    [/^(预副歌|預副歌|导歌|導歌|Bメロ|pre-?chorus|프리코러스|pre-?estribillo|pre-?ritornello|pré-?refrão|pré-?refrain)/i, 'prechorus'],
+    [/^(副歌|サビ|chorus|hook|후렴|코러스|pripev|kertosäe|refren|refreni|refrain|estribillo|ritornello|refrão|coro)/i, 'chorus'],
+    [/^(主歌|Aメロ|verse|벌스|절|strofa|strofë|säkeistö|couplet|strophe|verso|estrofa)/i, 'verse'],
+    [/^(桥段|橋段|过渡|過渡|ブリッジ|Cメロ|bridge|브릿지|bridž|most|pont|puente|ponte)/i, 'bridge'], [/^(间奏|間奏|interlude|간주|interludio|interlúdio|zwischenspiel)/i, 'interlude'],
+    [/^(尾奏|结尾|結尾|アウトロ|outro|아웃트로|kraj|završetak|loppu|fund|final|finale)/i, 'outro'], [/^(说唱|說唱|rap|랩)/i, 'rap'], [/^(念白|独白|獨白|口白|spoken)/i, 'spoken'],
     [/^(合唱|和声|和聲|choir|chœur|chor)/i, 'choir']];
   function header(l){
     const m = l.match(/^\[(.+)\]$/); if (!m) return null;
@@ -1057,6 +1280,16 @@ You might also like
       ['lj, nj', 'ль, нь', 'как в русском «люблю», «няня»'], ['e', 'е', 'твёрдое «э»: «те» звучит «тэ»'], ['r между согласными', 'р', 'слоговое: srce звучит «срьце»']],
       tips: ['<b>Ударение</b> никогда не падает на последний слог. В сербском есть и музыкальные тоны, но в песнях их почти не слышно.',
         '«Ближе к звучанию»: «е» после согласной пишется как «э».'] },
+    ja: { name: 'Японский', head: ['Кана', 'Пишется'], rows: [
+      ['し / ち / つ', 'си / ти / цу', 'между «си» и «щи», между «ти» и «чи»; в английской записи shi, chi, tsu'],
+      ['じ / ざ, ず, ぜ, ぞ', 'дзи / дза…', 'между «дзи» и «джи», в начале слова почти «з»'],
+      ['ら り る れ ろ', 'ра ри ру рэ ро', 'один удар языком, между «р» и «л»'], ['ふ', 'фу', 'лёгкий выдох, губы не смыкаются'],
+      ['ん', 'н (нъ перед гласной)', 'перед м, б, п звучит как «м»'], ['ー, おう, えい', ':, о:, эй', 'двоеточие = гласная тянется вдвое дольше'],
+      ['っ', 'удвоенная согласная', 'короткая пауза перед согласной: маттэ'], ['は / を / へ как частицы', 'ва / о / э', '']],
+      tips: ['Запись по системе Поливанова: так японские слова пишут в русских словарях (поэтому «суси», а не «суши»).',
+        '<b>Ударение</b> в японском музыкальное (высота голоса), в песнях его не слышно, так что ни один слог не выделяй.',
+        '«у» и «и» между глухими согласными и в конце после «с» часто почти не слышны: «дэсу» звучит как «дэс».',
+        'Кандзи читаются по словарю: он загружается, только когда в тексте есть японский. Без словаря читаются кана и ромадзи.'] },
     es: { name: 'Испанский', head: ['Буквы', 'Пишется'], rows: [
       ['j, g перед e/i', 'х', 'горловое «х», чуть мягче русского'], ['ll, y', 'й', 'как «й» (в Аргентине ближе к «ш» / «ж»)'],
       ['ñ', 'нь', 'как в «няня»'], ['r / rr', 'р / рр', 'одноударное / раскатистое'], ['c перед e/i, z', 'с', 'в Испании шепелявое, как англ. th'],
@@ -1086,7 +1319,7 @@ You might also like
   function renderGuide(rows){
     const present = [];
     for (const r of rows){
-      const l = (r.t === 'zh' || r.t === 'py') ? 'zh' : r.t === 'ko' ? 'ko' : r.t === 'lat' ? r.lang : null;
+      const l = (r.t === 'zh' || r.t === 'py') ? 'zh' : r.t === 'ko' ? 'ko' : r.t === 'ja' ? 'ja' : r.t === 'lat' ? r.lang : null;
       if (l && !present.includes(l)) present.push(l);
       if (r.src && KOR.has(r.src) && !present.includes('ko')) present.push('ko');
     }
@@ -1114,15 +1347,38 @@ You might also like
     for (const r of rows){
       if (r.t === 'zh' || r.t === 'py'){
         r.ru = r.ru.map(x => typeof x === 'string' ? TGT.conv(x, tg) : { ...x, c: TGT.conv(x.c, tg, 'zh') });
+      } else if (r.t === 'ja'){
+        r.ru = tg === 'ja' ? [r.src] : [r.hep];
       } else if (r.t === 'ko'){
         r.ru = r.ru.map(x => TGT.conv(x, tg));
       } else if (r.t === 'lat'){
+        if (r.lang === 'ja'){
+          // romaji: Latin readers get it as it is, Japanese readers get katakana
+          r.ru = tg === 'ja' ? [r.src.replace(/[A-Za-zāīūēōÂâ'’]+/g, w => JA.romajiToKana(w) || w).replace(/ /g, '・')] : [r.src];
+          continue;
+        }
         r.ru = (r.lang === tg || (['pt','br'].includes(r.lang) && ['pt','br'].includes(tg))) ? [r.src] : r.ru.map(x => typeof x === 'string' ? TGT.conv(x, tg, r.lang)
           : TGT.conv(x.pre + x.c + x.post, tg, r.lang));
       } else if (r.t === 'plain'){
         r.src = r.ru[0]; r.ru = [TGT.conv(r.ru[0], tg)];
       }
     }
+  }
+
+  // Japanese dictionary (kuromoji): loaded only when the lyrics contain Japanese
+  function loadJa(){
+    if (jaState !== 'idle') return;
+    jaState = 'loading';
+    const base = window.JA_BASE || '';
+    const go = () => kuromoji.builder({ dicPath: base + 'dict/' }).build((err, t) => {
+      if (err || !t){ jaState = 'failed'; convert(); return; }
+      jaTok = t; jaState = 'ready'; convert();
+    });
+    if (window.kuromoji) return go();
+    const sc = document.createElement('script');
+    sc.src = window.KUROMOJI_SRC || 'vendor/kuromoji.js';
+    sc.onload = go; sc.onerror = () => { jaState = 'failed'; convert(); };
+    document.head.appendChild(sc);
   }
 
   // Other languages: pick a language per line (or the one chosen in the list) and transcribe
@@ -1165,6 +1421,8 @@ You might also like
   function convert(){
     const lines = inp.value.replace(/\r/g,'').split('\n');
     docHan = HAN.test(inp.value);
+    docJa = JA.KANA.test(inp.value);
+    needJa = false; jaMissing = false;
     const rows = []; let missingDict = false, skip = 0;
     for (let k = 0; k < lines.length; k++){
       const l = lines[k].trim();
@@ -1174,6 +1432,21 @@ You might also like
       if (JUNK.test(l)) continue;
       const h = header(l);
       if (h != null){ rows.push({t:'head', ru:[h]}); continue; }
+      if (JA.KANA.test(l) || (docJa && HAN.test(l))){
+        // Japanese: kanji through the dictionary when it is loaded; a romaji line right after is used if there is no dictionary
+        if (!jaTok) needJa = true;
+        let n = k + 1;
+        const nextRomaji = n < lines.length && lines[n].trim() && !JA.KANA.test(lines[n]) && !HAN.test(lines[n]) && LAT.best(LAT.scores(lines[n])).lang === 'ja';
+        const r = JA.line(l, jaTok);
+        if (r.missing && nextRomaji){
+          const toks = LAT.line(lines[n].trim(), 'ja');
+          rows.push({t:'ja', src:l, ru:[toks.map(x => typeof x === 'string' ? x : x.pre + x.c + x.post).join('')], hep:lines[n].trim(), kana:null}); k = n; continue;
+        }
+        if (nextRomaji) k = n;
+        rows.push({t:'ja', src:l, ru:[r.c], hep:r.h, kana:r.kana});
+        if (r.missing) jaMissing = true;
+        continue;
+      }
       if (HAN.test(l)){
         // hanzi and pinyin glued in one line: "天上太阳红 唉Tiānshàng tàiyang …"
         const g = splitGlued(l);
@@ -1195,17 +1468,20 @@ You might also like
         rows.push({t:'other', src:l, ru:[l]});
       } else rows.push({t:'other', ru:[l]});
     }
+    if (needJa) loadJa();
     latin(rows);
     retarget(rows);
     renderGuide(rows);
     while (rows.length && rows[rows.length-1].t === 'gap') rows.pop();
     render(rows);
-    const n = rows.filter(r => ['zh','py','ko','lat'].includes(r.t)).length;
+    const n = rows.filter(r => ['zh','py','ko','lat','ja'].includes(r.t)).length;
     const langs = [...new Set(rows.filter(r => r.t === 'lat').map(r => langName(r.lang, uiLang)))];
     status.textContent = (n ? tr('done')(n) : tr('nothing'))
       + (langs.length ? tr('langsUsed')(langs.join(', ')) : '')
       + ($('target').value !== 'ru' ? tr('writtenFor')(langName($('target').value, uiLang)) : '')
       + (rows.some(r => r.pending) ? tr('enLoading') : '')
+      + (jaState === 'loading' && needJa ? tr('jaLoading') : '')
+      + (jaState === 'failed' && jaMissing ? tr('jaFailed') : '')
       + (missingDict ? tr('missingDict') : '');
     lastRows = rows;
   }
