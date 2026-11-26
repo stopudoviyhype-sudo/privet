@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Paste song lyrics in 13 languages and see how they sound, spelled for your readers.">
+<meta name="theme-color" content="#1f6f5c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Song Sound">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}</style>
+<title>Song Sound</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700&family=Noto+Serif+TC:wght@400;600&display=swap">
+<style>
+/* Layout: one column tool — input on top, line-by-line result below, original hanzi set small above each Cyrillic line */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --fg:#17201d; --muted:#5d6b66; --line:#d8dfdc;
+  --accent:#1f6f5c; --accent-fg:#ffffff; --soft:#e3efe9;
+  --t1:#c8322b; --t2:#1d8a3c; --t3:#2457c5; --t4:#8a3fb0; --t5:#8a9792;
+  --f-ui:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-ru:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-han:"Noto Serif TC","Songti TC","PMingLiU",serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111715; --surface:#18211e; --fg:#e6eeea; --muted:#94a59e; --line:#2b3833;
+  --accent:#5cc4a6; --accent-fg:#0b1512; --soft:#1d2d28; 
+  --t1:#ff7b72; --t2:#5fd17f; --t3:#79a6ff; --t4:#d29bf0; --t5:#7b8a84; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111715; --surface:#18211e; --fg:#e6eeea; --muted:#94a59e; --line:#2b3833;
+  --accent:#5cc4a6; --accent-fg:#0b1512; --soft:#1d2d28; 
+  --t1:#ff7b72; --t2:#5fd17f; --t3:#79a6ff; --t4:#d29bf0; --t5:#7b8a84; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:16px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding-block:32px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:20px}
+h1{font-size:28px;line-height:1.15;margin:0;font-weight:700;text-wrap:balance;letter-spacing:-.01em}
+.lead{margin:6px 0 0;color:var(--muted);max-width:62ch}
+label.cap{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500}
+textarea{width:100%;box-sizing:border-box;min-height:180px;resize:vertical;padding:14px;border-radius:10px;
+  border:1px solid var(--line);background:var(--surface);color:var(--fg);font:15px/1.55 var(--f-ui)}
+textarea:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+button{font:500 15px var(--f-ui);border-radius:8px;padding:9px 16px;cursor:pointer;border:1px solid var(--line);
+  background:var(--surface);color:var(--fg)}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.opt{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted);cursor:pointer}
+.opt input{accent-color:var(--accent);width:16px;height:16px}
+.status{font-size:13px;color:var(--muted)}
+.out{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;
+  display:flex;flex-direction:column;gap:14px;min-width:0}
+.ln{display:flex;flex-direction:column;gap:1px;min-width:0}
+.ln .src{font-family:var(--f-han);font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.ln .py{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.ln .ru{font-family:var(--f-ru);font-size:19px;font-weight:500;overflow-wrap:anywhere}
+.ln.other .ru{font-size:14px;color:var(--muted);font-weight:400;font-style:italic}
+.gap{height:6px}
+.empty{color:var(--muted)}
+details{color:var(--muted);font-size:14px}
+details summary{cursor:pointer;color:var(--fg);font-weight:500}
+table{border-collapse:collapse;margin-top:8px;font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto}
+td,th{border-bottom:1px solid var(--line);padding:5px 12px 5px 0;text-align:left;white-space:nowrap}
+th{font-weight:500;color:var(--fg)}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:7px 12px;font-size:14px;cursor:pointer;color:var(--muted)}
+.seg input:checked + label{background:var(--soft);color:var(--fg);font-weight:500}
+.seg input:focus-visible + label{outline:2px solid var(--accent);outline-offset:-2px}
+.grp{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.tone{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tone b{font-size:18px;font-weight:500}
+.tone svg{width:40px;height:22px;display:block}
+.tone span{font-size:13px;color:var(--muted);line-height:1.35}
+.colors .t1{color:var(--t1)} .colors .t2{color:var(--t2)} .colors .t3{color:var(--t3)} .colors .t4{color:var(--t4)}
+.t5{color:var(--t5);font-weight:400}
+.ln .ru .t5{font-size:.88em}
+.legend .t1{color:var(--t1)} .legend .t2{color:var(--t2)} .legend .t3{color:var(--t3)} .legend .t4{color:var(--t4)}
+
+.ln .ru{line-height:1.35}
+.ln .ru .w{white-space:nowrap}
+.ln .ru .sy{display:inline-block;text-align:center}
+.ln .ru .mk{display:block;height:.62em;font-size:1.05em;line-height:1;font-weight:700;user-select:none}
+.ln .ru sup{font-size:.6em;line-height:0;margin-left:1px}
+.ln.head .ru{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);font-weight:500;line-height:1.4;padding-top:4px}
+select{font:14px var(--f-ui);padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.ln .ru .st .mk{color:var(--accent)}
+.tone .sy{display:inline-block;text-align:center}
+.tone .mk{display:block;height:.62em;line-height:1;font-weight:700;font-size:1.15em}
+.guide{display:flex;flex-direction:column;gap:22px;margin-top:12px}
+.guide section{display:flex;flex-direction:column;gap:8px}
+.guide h3{margin:0;font-size:15px;color:var(--fg)}
+.guide p{margin:0;max-width:68ch}
+.guide td:nth-child(2){color:var(--fg);font-weight:500}
+.guide td:last-child{white-space:normal;min-width:180px}
+[hidden]{display:none!important}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.top{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.titles{min-width:0;flex:1 1 380px}
+.flag{width:22px;height:15px;border-radius:2px;flex:none;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 15%,transparent)}
+.dd{position:relative;display:inline-block}
+.dd-btn{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;font:14px var(--f-ui);max-width:100%}
+.dd-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd-chev{width:11px;height:8px;color:var(--muted);flex:none}
+.dd-list{position:absolute;z-index:20;top:calc(100% + 4px);left:0;min-width:100%;max-height:320px;overflow:auto;margin:0;padding:4px;list-style:none;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.uisel .dd-list{left:auto;right:0}
+.dd-list:focus{outline:none}
+.dd-list li{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;cursor:pointer;white-space:nowrap;font-size:14px;color:var(--fg)}
+.dd-list li.on{background:var(--soft)}
+.dd-list li[aria-selected="true"]{font-weight:500}
+
+.brand{display:flex;align-items:center;gap:8px;color:var(--accent);margin-bottom:6px;height:26px}
+.logo svg{width:24px;height:24px;display:block}
+.word{font-weight:600;font-size:17px;letter-spacing:.01em;transition:opacity .35s ease,transform .35s ease;font-family:var(--f-ui),var(--f-han)}
+.word.out{opacity:0;transform:translateY(-6px)}
+@media (prefers-reduced-motion: reduce){.word{transition:none}}
+button.install{border-color:var(--accent);color:var(--accent)}
+.ios-hint{margin:0;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="titles">
+      <div class="brand"><span class="logo"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><rect x="2" y="9" width="2.6" height="6" rx="1.3"/><rect x="6.6" y="5" width="2.6" height="14" rx="1.3"/><rect x="11.2" y="2" width="2.6" height="20" rx="1.3"/><rect x="15.8" y="6" width="2.6" height="12" rx="1.3"/><rect x="20.4" y="9.5" width="2.6" height="5" rx="1.3"/></g></svg></span><span class="word" id="word" aria-hidden="true">звук</span></div>
+      <h1 data-i18n="title"></h1>
+      <p class="lead" data-i18n="lead"></p>
+    </div>
+    <label class="grp uisel" for="ui"><span class="lbl sr-only" data-i18n="uiLabel"></span>
+      <select id="ui">
+        <option value="ru">Русский</option><option value="en">English</option><option value="de">Deutsch</option><option value="fr">Français</option>
+        <option value="es">Español</option><option value="it">Italiano</option><option value="pt">Português (PT)</option><option value="br">Português (BR)</option>
+      </select></label>
+  </header>
+
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <label class="cap" for="inp" data-i18n="textLabel"></label>
+    <textarea id="inp" spellcheck="false"></textarea>
+  </div>
+
+  <div class="bar">
+    <button class="primary" id="go" data-i18n="go"></button>
+    <button id="copy" data-i18n="copy"></button>
+    <button id="clear" data-i18n="clear"></button>
+    <button id="install" class="install" hidden data-i18n="install"></button>
+    <label class="opt"><input type="checkbox" id="showSrc" checked> <span data-i18n="showSrc"></span></label>
+    <label class="opt"><input type="checkbox" id="colors" checked> <span data-i18n="colors"></span></label>
+  </div>
+  <div class="bar">
+    <label class="grp" for="lang"><span class="lbl" data-i18n="langLabel"></span>
+      <select id="lang">
+        <option value="auto" selected></option>
+        <option value="en"></option><option value="fr"></option><option value="de"></option><option value="es"></option>
+        <option value="it"></option><option value="pt"></option><option value="br"></option>
+        <option value="fi"></option><option value="sq"></option><option value="sr"></option>
+        <option value="off"></option>
+      </select></label>
+    <label class="grp" for="target"><span class="lbl" data-i18n="targetLabel"></span>
+      <select id="target">
+        <option value="ru" selected></option><option value="en"></option><option value="de"></option><option value="fr"></option>
+        <option value="es"></option><option value="it"></option><option value="pt"></option><option value="br"></option>
+      </select></label>
+  </div>
+  <div class="bar">
+    <div class="grp"><span data-i18n="styleLabel"></span>
+      <div class="seg" role="radiogroup" data-i18n-aria="styleLabel">
+        <input type="radio" name="style" id="s-std" value="std" checked><label for="s-std" data-i18n="std"></label>
+        <input type="radio" name="style" id="s-snd" value="snd"><label for="s-snd" data-i18n="snd"></label>
+      </div>
+    </div>
+    <div class="grp"><span data-i18n="toneLabel"></span>
+      <div class="seg" role="radiogroup" data-i18n-aria="toneLabel">
+        <input type="radio" name="mode" id="m-marks" value="marks" checked><label for="m-marks" data-i18n="marks"></label>
+        <input type="radio" name="mode" id="m-nums" value="nums"><label for="m-nums" data-i18n="nums"></label>
+        <input type="radio" name="mode" id="m-none" value="none"><label for="m-none" data-i18n="none"></label>
+      </div>
+    </div>
+  </div>
+  <p class="ios-hint" id="iosHint" hidden data-i18n="iosHint"></p>
+  <div class="status" id="status" role="status"></div>
+
+  <div class="legend" id="tones" aria-label="Тоны китайского">
+    <div class="tone"><svg viewBox="0 0 40 22" class="t1"><path d="M4 5H36" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/></svg><b class="t1"><span class="sy"><span class="mk" aria-hidden="true">ˉ</span><span class="tl">а</span></span> · 1</b><span data-i18n="t1"></span></div>
+    <div class="tone"><svg viewBox="0 0 40 22" class="t2"><path d="M4 17L36 4" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/></svg><b class="t2"><span class="sy"><span class="mk" aria-hidden="true">ˊ</span><span class="tl">а</span></span> · 2</b><span data-i18n="t2"></span></div>
+    <div class="tone"><svg viewBox="0 0 40 22" class="t3"><path d="M4 9Q16 22 24 18T36 6" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/></svg><b class="t3"><span class="sy"><span class="mk" aria-hidden="true">ˇ</span><span class="tl">а</span></span> · 3</b><span data-i18n="t3"></span></div>
+    <div class="tone"><svg viewBox="0 0 40 22" class="t4"><path d="M4 4L36 18" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/></svg><b class="t4"><span class="sy"><span class="mk" aria-hidden="true">ˋ</span><span class="tl">а</span></span> · 4</b><span data-i18n="t4"></span></div>
+    <div class="tone"><svg viewBox="0 0 40 22" class="t5"><circle cx="20" cy="12" r="3" fill="currentColor"/></svg><b class="t5"><span class="tl">а</span> · <span data-i18n="light"></span></b><span data-i18n="t5"></span></div>
+  </div>
+
+  <section class="out" id="out" aria-live="polite"></section>
+
+  <details id="guideBox">
+    <summary data-i18n="guide"></summary>
+    <div id="guide" class="guide"></div>
+  </details>
+</div>
+
+<script src="vendor/pinyin-pro.js?v=202611261326"></script>
+<script src="app.js?v=202611261326"></script>
+</body>
+</html>
