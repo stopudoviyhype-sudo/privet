@@ -1,6 +1,6 @@
 // Offline cache: the app works without internet after the first visit
-const CACHE = 'song-sound-202611261357';
-const CORE = ['./', 'index.html', 'app.js?v=202611261357', 'vendor/pinyin-pro.js?v=202611261357', 'en-dict.txt', 'manifest.webmanifest',
+const CACHE = 'song-sound-202611261407';
+const CORE = ['./', 'index.html', 'app.js?v=202611261407', 'vendor/pinyin-pro.js?v=202611261407', 'en-dict.txt', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
@@ -12,7 +12,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   // pages: network first so updates arrive, cache when offline
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put('index.html', c)); return r; })
+    e.respondWith(fetch(req, { cache: 'no-cache' }).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put('index.html', c)); return r; })
       .catch(() => caches.match('index.html')));
     return;
   }
