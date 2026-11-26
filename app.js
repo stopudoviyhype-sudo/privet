@@ -1604,10 +1604,10 @@ You might also like
   // "sound" in the supported languages, cycling next to the logo
   const WORDS = [['звук','ru'],['音','zh'],['소리','ko'],['sound','en'],['Klang','de'],['son','fr'],['sonido','es'],['suono','it'],['som','pt'],['ääni','fi'],['tingull','sq'],['zvuk','sr']];
   let wi = 0; const wEl = $('word');
+  // switches instantly: a fade made Chrome on Windows draw a box behind the word
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(() => {
-    wEl.classList.add('out');
-    setTimeout(() => { wi = (wi + 1) % WORDS.length; wEl.textContent = WORDS[wi][0]; wEl.lang = WORDS[wi][1]; wEl.classList.remove('out'); }, 350);
-  }, 2200);
+    wi = (wi + 1) % WORDS.length; wEl.textContent = WORDS[wi][0];
+  }, 2000);
 
   // App install (PWA): Chrome / Edge / Android show a button, iPhone gets a hint
   let installEvt = null;

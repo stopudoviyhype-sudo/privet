@@ -1,6 +1,6 @@
 // Offline cache: the app works without internet after the first visit
-const CACHE = 'song-sound-202611261407';
-const CORE = ['./', 'index.html', 'app.js?v=202611261407', 'vendor/pinyin-pro.js?v=202611261407', 'en-dict.txt', 'manifest.webmanifest',
+const CACHE = 'song-sound-202611261410';
+const CORE = ['./', 'index.html', 'app.js?v=202611261410', 'vendor/pinyin-pro.js?v=202611261410', 'en-dict.txt', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
